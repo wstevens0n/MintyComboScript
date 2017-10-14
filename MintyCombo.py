@@ -3,7 +3,7 @@
 '''
 Date:  10/08/17
 Author:  HoolyHoo
-Version:  2.1
+Version:  3.0
 Name:  Combo Shortcut Script - Utility for the MintyPi project.
 Description:  Monitors GPIO interrupts to adjust volume with icons, lcd dimming, battery monitor, wifi and bluetooth toggle, and performs safe shutdown.
 Usage:  Mode + Y = Toggle Wifi with Icon
@@ -23,6 +23,7 @@ from subprocess import check_call
 import wiringpi
 import os
 import time
+import pickle
 
 
 def grabPin(file, directory):
@@ -44,6 +45,10 @@ def grabPin(file, directory):
 
 pinFile = "/boot/mintypi/pinfile.txt"
 pinDirectory = "/boot/mintypi/"
+pngviewPath = "/home/pi/MintyComboScript/Pngview/"
+iconPath = "/home/pi/MintyComboScript/icons"
+statePath = "/home/pi/MintyComboScript/combo.dat"
+comboStates = {'wifi': 1, 'bluetooth': 1, 'volume': 60, 'brightness': 1024, 'battery': 1}
 functionPin = grabPin(pinFile, pinDirectory)
 functionBtn = Button(functionPin)
 brightnessUpBtn = Button(4)
@@ -56,74 +61,61 @@ wifiBtn = Button(20)
 bluetoothBtn = Button(16)
 cheatBtn = Button(6)
 led = 1
-brightness = 1024
-volume = 60
-wifiStatus = 1
-bluetoothStatus = 1
-toggleFile = "/home/pi/MintyComboScript/Toggle.txt"
-pngviewPath = "/home/pi/MintyComboScript/Pngview/"
-iconPath = "/home/pi/MintyComboScript/icons"
 
 
 # Functions
 def brightnessUp():
-    global brightness
     if brightnessUpBtn.is_pressed:
-        brightness = min(1024, brightness + 100)
+        comboStates['brightness'] = min(1024, comboStates['brightness'] + 100)
         controlBrightness()
 
 
 def brightnessDown():
-    global brightness
     if brightnessDownBtn.is_pressed:
-        brightness = max(0, brightness - 100)
+        comboStates['brightness'] = max(0, comboStates['brightness'] - 100)
         controlBrightness()
 
 
 def volumeDown():
-    global volume
-    volume = max(0, volume - 10)
-    os.system("amixer sset -q 'PCM' " + str(volume) + "%")
+    comboStates['volume'] = max(0, comboStates['volume'] - 10)
+    os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
     showVolumeIcon()
 
 
 def volumeUp():
-    global volume
-    volume = min(100, volume + 10)
-    os.system("amixer sset -q 'PCM' " + str(volume) + "%")
+    comboStates['volume'] = min(100, comboStates['volume'] + 10)
+    os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
     showVolumeIcon()
 
 
 def wifiToggle():
-    global wifiStatus
-    if wifiStatus == 0:
+    if comboStates['wifi'] == 1:
         os.system("sudo rfkill block wifi")
         os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/wifiOff.png &")
         time.sleep(3)
         killPngview()
-        wifiStatus = 1
+        comboStates['wifi'] = 0
     else:
         os.system("sudo rfkill unblock wifi")
         os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/wifiOn.png &")
         time.sleep(3)
         killPngview()
-        wifiStatus = 0
+        comboStates['wifi'] = 1
 
 
 def bluetoothToggle():
-    global bluetoothStatus
-    if bluetoothStatus == 0:
+    if comboStates['bluetooth'] == 1:
         os.system("sudo rfkill block bluetooth")
         os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/bluetoothOff.png &")
         time.sleep(3)
         killPngview()
-        bluetoothStatus = 1
+        comboStates['bluetooth'] = 0
     else:
         os.system("sudo rfkill unblock bluetooth")
         os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/bluetoothOn.png &")
         time.sleep(3)
         killPngview()
-        bluetoothStatus = 0
+        comboStates['bluetooth'] = 1
 
 
 def shutdown():
@@ -132,53 +124,50 @@ def shutdown():
         time.sleep(1)
         killPngview()
         time.sleep(.5)
+    writeData(statePath)
+    time.sleep(1)
     check_call(['sudo', 'poweroff'])
 
 
 def toggleState():
-    global state
-    if state == 1:
+    if comboStates['battery'] == 1:
         os.system('sudo pkill -f "python /home/pi/MintyComboScript/MintyBatteryMonitor.py"')
-        state = 0
-        with open(toggleFile, 'w') as f:
-            f.write('0')
+        comboStates['battery'] = 0
+        writeData(statePath)
         time.sleep(2)
         os.system("python /home/pi/MintyComboScript/MintyBatteryMonitor.py &")
         time.sleep(1)
     else:
         os.system('sudo pkill -f "python /home/pi/MintyComboScript/MintyBatteryMonitor.py"')
-        state = 1
-        with open(toggleFile, 'w') as f:
-            f.write('1')
+        comboStates['battery'] = 1
+        writeData(statePath)
         time.sleep(2)
         os.system("python /home/pi/MintyComboScript/MintyBatteryMonitor.py &")
         time.sleep(1)
 
 
 def showVolumeIcon():
-    global volume
     killPngview()
     while volumeUpBtn.is_pressed or volumeDownBtn.is_pressed:
         if volumeUpBtn.is_pressed:
-            os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/Volume" + str(volume) + ".png &")
-            volume = min(100, volume + 10)
-            os.system("amixer sset -q 'PCM' " + str(volume) + "%")
+            os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/Volume" + str(comboStates['volume']) + ".png &")
+            comboStates['volume'] = min(100, comboStates['volume'] + 10)
+            os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
             killPngview()
         elif volumeDownBtn.is_pressed:
-            os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/Volume" + str(volume) + ".png &")
-            volume = max(0, volume - 10)
-            os.system("amixer sset -q 'PCM' " + str(volume) + "%")
+            os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/Volume" + str(comboStates['volume']) + ".png &")
+            comboStates['volume'] = max(0, comboStates['volume'] - 10)
+            os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
             killPngview()
     else:
-        os.system("amixer sset -q 'PCM' " + str(volume) + "%")
-        os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/Volume" + str(volume) + ".png &")
+        os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
+        os.system(pngviewPath + "/pngview2 -b 0 -l 999999 " + iconPath + "/Volume" + str(comboStates['volume']) + ".png &")
         time.sleep(2)
         killPngview()
 
 
 def controlBrightness():
-    global brightness
-    wiringpi.pwmWrite(led, brightness)
+    wiringpi.pwmWrite(led, comboStates['brightness'])
     time.sleep(.2)
 
 
@@ -192,13 +181,14 @@ def killPngview():
     os.system("sudo killall -q -15 pngview2")
 
 
-def initSetup():
-    wiringpi.wiringPiSetup()
-    wiringpi.pinMode(led, 2)
-    wiringpi.pwmWrite(led, brightness)
-    os.system("amixer sset -q 'PCM' " + str(volume) + "%")
-    os.system("sudo rfkill block wifi")
-    os.system("sudo rfkill block bluetooth")
+def readData(filepath):
+    with open(filepath, 'rb') as file:
+        return pickle.load(file)
+
+
+def writeData(filepath):
+    with open(filepath, 'wb') as file:
+        pickle.dump(comboStates, file)
 
 
 def checkFunction():
@@ -225,15 +215,33 @@ def checkFunction():
 
 # Initial File Setup
 try:
-    with open(toggleFile, 'r') as f:
-        output = f.read()
-except IOError:
-    with open(toggleFile, 'w') as f:
-        f.write('1')
-    output = '1'
-state = int(output)
-initSetup()
-
+    comboStates = readData(statePath)
+    wiringpi.wiringPiSetup()
+    wiringpi.pinMode(led, 2)
+    wiringpi.pwmWrite(led, comboStates['brightness'])
+    os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
+    if comboStates['wifi'] == 1:
+        os.system("sudo rfkill unblock wifi")
+    else:
+        os.system("sudo rfkill block wifi")
+    if comboStates['bluetooth'] == 1:
+        os.system("sudo rfkill unblock bluetooth")
+    else:
+        os.system("sudo rfkill block bluetooth")
+except:
+    writeData(statePath)
+    wiringpi.wiringPiSetup()
+    wiringpi.pinMode(led, 2)
+    wiringpi.pwmWrite(led, comboStates['brightness'])
+    os.system("amixer sset -q 'PCM' " + str(comboStates['volume']) + "%")
+    if comboStates['wifi'] == 1:
+        os.system("sudo rfkill unblock wifi")
+    else:
+        os.system("sudo rfkill block wifi")
+    if comboStates['bluetooth'] == 1:
+        os.system("sudo rfkill unblock bluetooth")
+    else:
+        os.system("sudo rfkill block bluetooth")
 
 # Interrupt
 functionBtn.when_pressed = checkFunction

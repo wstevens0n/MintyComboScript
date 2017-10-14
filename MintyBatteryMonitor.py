@@ -3,7 +3,7 @@
 '''
 Date:  10/08/17
 Author:  HoolyHoo
-Version:  2.0
+Version:  3.0
 Name:  Battery Monitor Script - Utility for the MintyPi project.
 Description:  Monitors analog input for voltage and displays battery icon related to the input.  Displays low warning battery video at 25% battery level and displays shutdown video at critical battery level followed by a gracefull safe shutdown.
 Usage:  Battery icons can be toggled and state remembered by using shortcut combo, "Mode + A".
@@ -15,6 +15,7 @@ import os
 import signal
 from subprocess import check_output
 import Adafruit_ADS1x15
+import pickle
 
 
 # Config
@@ -24,6 +25,7 @@ debug = 0
 toggleFile = "/home/pi/MintyComboScript/Toggle.txt"
 PNGVIEWPATH = "/home/pi/MintyComboScript/Pngview/"
 ICONPATH = "/home/pi/MintyComboScript/icons"
+statePath = "/home/pi/MintyComboScript/combo.dat"
 CLIPS = 1
 REFRESH_RATE = 2
 VOLT100 = 4.09  # 4.09
@@ -33,6 +35,11 @@ VOLT25 = 3.35    # 3.5
 VOLT0 = 3.25     # 3.2
 adc = Adafruit_ADS1x15.ADS1015()
 GAIN = 1
+
+
+def readData(filepath):
+    with open(filepath, 'rb') as file:
+        return pickle.load(file)
 
 
 def changeicon(percent):
@@ -67,21 +74,14 @@ def convertVoltage(sensorValue):
 
 signal.signal(signal.SIGTERM, endProcess)
 signal.signal(signal.SIGINT, endProcess)
+comboStates = readData(statePath)
 
 
 # Begin Battery Monitoring
 
 os.system(PNGVIEWPATH + "/pngview -b 0 -l 299999 -x 650 -y 10 " + ICONPATH + "/blank.png &")
-try:
-    with open(toggleFile, 'r') as f:
-        output = f.read()
-except IOError:
-    with open(toggleFile, 'w') as f:
-        f.write('1')
-    output = '1'
-state = int(output)
 
-if state == 1:
+if comboStates['battery'] == 1:
     while True:
         try:
             ret1 = readVoltage()
@@ -127,7 +127,7 @@ if state == 1:
             print('No i2c Chip Found!')
             exit(0)
 
-elif state == 0:
+elif comboStates['battery'] == 0:
     while True:
         try:
             ret1 = readVoltage()

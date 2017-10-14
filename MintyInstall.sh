@@ -8,9 +8,11 @@ sudo apt-get install python-pkg-resources python3-pkg-resources -y
 sudo apt-get install -y i2c-tools -y
 sudo apt-get install build-essential python-dev python-smbus python-pip -y
 sudo pip install adafruit-ads1x15
+sudo pip install wiringpi2
 cd ~
-sudo chmod 755 /home/pi/MintyComboScript/Pngview/pngview
-sudo chmod 755 /home/pi/MintyComboScript/MintyStart.sh
+sudo chmod 777 /home/pi/MintyComboScript/Pngview/pngview
+sudo chmod 777 /home/pi/MintyComboScript/Pngview/pngview2
+sudo chmod 777 /home/pi/MintyComboScript/MintyStart.sh
 sudo sed -i '/\"exit 0\"/!s/exit 0/\/home\/pi\/MintyComboScript\/MintyStart.sh \&\nexit 0/g' /etc/rc.local
 
 config_txt=/boot/config.txt
