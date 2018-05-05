@@ -30,6 +30,7 @@ statePath = "/home/pi/MintyComboScript/combo.dat"
 CLIPS = 1
 REFRESH_RATE = 2
 VOLT100 = 4.09  # 4.09
+VOLT99 = 4.08   # 4.09 
 VOLT75 = 3.68   # 3.76
 VOLT50 = 3.46   # 3.63
 VOLT25 = 3.35    # 3.5
@@ -121,6 +122,10 @@ if comboStates['battery'] == 1:
                 if status != 75:
                     changeicon("75")
                 status = 75
+            elif ret < VOLT99:
+                if status != 99:
+                    changeicon("99")
+                status = 99
             else:
                 if status != 100:
                     changeicon("100")
@@ -163,6 +168,8 @@ elif comboStates['battery'] == 0:
                 status = 50
             elif ret < VOLT75:
                 status = 75
+            elif ret < VOLT99:
+                status = 99
             else:
                 status = 100
 
